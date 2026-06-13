@@ -1,14 +1,13 @@
 # AI头条新闻系统
 
-![Python](attachment/1.svg "Python")
+[![](https://img.shields.io/badge/python-3.11+-007ec6?logo=python)](https://www.python.org/)
 
-![FastAPI](attachment/2.svg "FastAPI")
+[![](https://img.shields.io/badge/FastAPI-0.104.1-67ac09?logo=FastAPI)](https://www.python.org/)
 
-![MySQL](attachment/3.svg "MySQL")
+[![](https://img.shields.io/badge/MySQL-8.0-007ec6?logo=mysql)](https://www.mysql.com/)
 
-![License](attachment/4.svg "License")
+![](https://img.shields.io/badge/License-MIT-d8b800?logo=MIT)
 
-![Build](attachment/5.svg "Build")
 
 一个基于 FastAPI 和 SQLAlchemy 构建的现代化、高性能异步新闻系统后端，提供完整的用户管理、新闻浏览、收藏和历史记录功能。
 
