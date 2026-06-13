@@ -34,7 +34,7 @@
 1. **克隆项目**
 
 ```bash
-git clone https://github.com/your-username/toutiao_backend.git
+git clone https://github.com/zhenyu1346/toutiao_backend.git
 cd toutiao_backend
 ```
 
@@ -51,7 +51,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ### 用户认证
 
 ```http
-POST /api/v1/users/register
+POST /api/user/register
 Content-Type: application/json
 
 {
@@ -62,7 +62,7 @@ Content-Type: application/json
 ```
 
 ```http
-POST /api/v1/users/login
+POST /api/user/login
 Content-Type: application/json
 
 {
@@ -74,19 +74,19 @@ Content-Type: application/json
 ### 新闻浏览
 
 ```http
-GET /api/v1/news?category_id=1&page=1&size=20
+GET /api/news?category_id=1&page=1&size=20
 Authorization: Bearer {access_token}
 ```
 
 ```http
-GET /api/v1/news/{news_id}
+GET /api/news/{news_id}
 Authorization: Bearer {access_token}
 ```
 
 ### 收藏管理
 
 ```http
-POST /api/v1/favorites
+POST /api/favorites
 Authorization: Bearer {access_token}
 Content-Type: application/json
 
@@ -96,7 +96,7 @@ Content-Type: application/json
 ```
 
 ```http
-GET /api/v1/favorites
+GET /api/favorites
 Authorization: Bearer {access_token}
 ```
 
@@ -202,12 +202,6 @@ toutiao_backend/
 ## 📄 许可证
 
 本项目基于 [MIT](LICENSE) 许可证开源。
-
-## 📞 支持与联系
-
-* **问题反馈**：请在 [Issues](https://github.com/your-username/toutiao_backend/issues) 页面提交
-* **功能建议**：欢迎通过 Issues 或 Pull Request 提出
-* **技术讨论**：可加入我们的技术交流群
 
 ***
 
