@@ -143,10 +143,7 @@ toutiao_backend/
 │   ├── cache_conf.py               # Redis 缓存配置
 │   └── __init__.py
 │
-├── requirements.txt                # 项目依赖
 ├── main.py                         # 应用入口文件
-├── init_db.py                      # 数据库初始化脚本
-├── .env.example                    # 环境变量示例
 └── README.md                       # 项目说明文档
 ```
 
