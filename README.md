@@ -48,57 +48,31 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 ## 📚 API 接口示例
 
-### 用户认证
+### 新闻相关接口
+| **接口**               | **方法** | **说明**   |
+| -------------------- | ------ | -------- |
+| /api/news/categories | GET    | 获取新闻分类列表 |
+| /api/news/list       | GET    | 获取新闻列表   |
+| /api/news/detail     | GET    | 获取新闻详情   |
 
-```http
-POST /api/user/register
-Content-Type: application/json
+### 收藏相关接口
 
-{
-  "username": "testuser",
-  "password": "securepassword123",
-  "nickname": "测试用户"
-}
-```
+| **接口**               | **方法** | **说明**   |
+| -------------------- | ------ | -------- |
+| /api/favorite/check  | GET    | 检查新闻收藏状态 |
+| /api/favorite/add    | POST   | 添加收藏     |
+| /api/favorite/remove | DELETE | 取消收藏     |
+| /api/favorite/list   | GET    | 获取收藏列表   |
+| /api/favorite/clear  | DELETE | 情况所有收藏   |
 
-```http
-POST /api/user/login
-Content-Type: application/json
+### 浏览历史相关接口
 
-{
-  "username": "testuser",
-  "password": "securepassword123"
-}
-```
-
-### 新闻浏览
-
-```http
-GET /api/news?category_id=1&page=1&size=20
-Authorization: Bearer {access_token}
-```
-
-```http
-GET /api/news/{news_id}
-Authorization: Bearer {access_token}
-```
-
-### 收藏管理
-
-```http
-POST /api/favorites
-Authorization: Bearer {access_token}
-Content-Type: application/json
-
-{
-  "news_id": 123
-}
-```
-
-```http
-GET /api/favorites
-Authorization: Bearer {access_token}
-```
+| 接口                                 | 方法     | 说明       |
+| ---------------------------------- | ------ | -------- |
+| /api/history/add                   | POST   | 添加浏览记录   |
+| /api/history/list                  | GET    | 获取浏览历史列表 |
+| /api/history/delete/\{history\_id} | DELETE | 删除单条浏览记录 |
+| /api/history/clear                 | DELETE | 清空浏览历史   |
 
 完整的 API 接口文档可通过 Swagger UI (`/docs`) 或 ReDoc (`/redoc`) 查看。
 
@@ -106,45 +80,33 @@ Authorization: Bearer {access_token}
 
 ```
 toutiao_backend/
+│
+├── config/                         # 配置文件
+│   └── db_conf.py                  # 数据库配置
+│
 ├── crud/                           # 数据访问层 (CRUD 操作)
-│   ├── favorite.py                 # 收藏相关数据库操作
-│   ├── history.py                  # 历史记录相关数据库操作
 │   ├── news.py                     # 新闻相关数据库操作
 │   └── users.py                    # 用户相关数据库操作
 │
 ├── models/                         # SQLAlchemy 数据模型定义
-│   ├── favorite.py                 # 收藏数据模型
-│   ├── history.py                  # 历史记录数据模型
 │   ├── news.py                     # 新闻数据模型
-│   ├── users.py                    # 用户数据模型
-│   └── base.py                     # 基础模型类
+│   └── users.py                    # 用户数据模型
 │
 ├── routers/                        # API 路由定义
-│   ├── favorite.py                 # 收藏相关路由
-│   ├── history.py                  # 历史记录相关路由
 │   ├── news.py                     # 新闻相关路由
-│   ├── users.py                    # 用户相关路由
-│   └── __init__.py
+│   └── users.py                    # 用户相关路由
 │
 ├── schemas/                        # Pydantic 数据验证模型
-│   ├── favorite.py                 # 收藏数据验证模型
-│   ├── history.py                  # 历史记录数据验证模型
 │   ├── news.py                     # 新闻数据验证模型
-│   ├── users.py                    # 用户数据验证模型
-│   └── __init__.py
+│   └── users.py                    # 用户数据验证模型
 │
 ├── utils/                          # 工具函数
-│   ├── auth.py                     # 认证工具
-│   ├── cache.py                    # 缓存工具
-│   └── __init__.py
+│   ├── response.py                 # 统一响应格式工具
+│   └── security.py                 # 安全/认证工具
 │
-├── config/                         # 配置文件
-│   ├── db_conf.py                  # 数据库配置
-│   ├── cache_conf.py               # Redis 缓存配置
-│   └── __init__.py
-│
+├── LICENSE
 ├── main.py                         # 应用入口文件
-└── README.md                       # 项目说明文档
+├── README.md                       # 项目说明文档
 ```
 
 ## 🗄️ 数据库设计
@@ -175,9 +137,43 @@ toutiao_backend/
 
 ### 缓存更新机制
 
-* **数据更新时自动清除相关缓存**：当新闻内容更新时，自动清除对应的详情缓存和列表缓存
-* **采用缓存失效而非主动更新策略**：保证数据最终一致性
-* **支持批量清除特定模式的缓存**：使用 Redis 的 `SCAN` 命令进行模式匹配删除
+* **数据更新时自动清除相关缓存**：当新闻内容更新时，自动清除对应的详情缓存和列表缓存。
+* **采用缓存失效而非主动更新策略**：保证数据最终一致性。
+* **支持批量清除特定模式的缓存**：使用 Redis 的 `SCAN` 命令进行模式匹配删除。
+
+## 🔐 认证机制
+
+系统使用基于令牌（Token）的认证机制：
+
+* 用户登录成功后返回访问令牌
+
+* 需要认证的接口的请求头添加Authorization：token值
+
+* 令牌有效期7天
+
+## 🛡️ 错误处理
+
+系统提供统一的错误处理机制：
+
+* 用户认证失败返回401状态码
+* 资源不存在返回404状态码
+* 服务器内部错误返回500状态码
+
+## 📋 开发规范
+
+* 使用异步数据库操作
+* 所有密码均加密存储
+* 接口返回统一的JSON格式
+* 详细的接口文档和示例
+* 缓存操作封装成独立函数便于调用
+
+## 🚀 性能优化
+
+* 使用Redis缓存热点数据
+* 异步数据库操作提升并发性能
+* 合理的数据库索引设计
+* 连接池管理减少连接开销
+
 
 ## 🤝 贡献指南
 
@@ -189,13 +185,6 @@ toutiao_backend/
 4. **推送到分支** (`git push origin feature/amazing-feature`)
 5. **开启 Pull Request**
 
-### 开发规范
-
-* 遵循 [PEP 8](https://peps.python.org/pep-0008/) Python 代码规范
-* 使用类型注解（Type Hints）
-* 为新增功能编写单元测试
-* 更新相关文档
-
 ## 📄 许可证
 
 本项目基于 [MIT](LICENSE) 许可证开源。
@@ -203,61 +192,3 @@ toutiao_backend/
 ***
 
 ⭐ **如果这个项目对你有帮助，请给我们一个 Star！** ⭐
-
-| **接口**               | **方法** | **说明**   |
-| -------------------- | ------ | -------- |
-| /api/news/categories | GET    | 获取新闻分类列表 |
-| /api/news/list       | GET    | 获取新闻列表   |
-| /api/news/detail     | GET    | 获取新闻详情   |
-
-### 收藏相关接口
-
-| **接口**               | **方法** | **说明**   |
-| -------------------- | ------ | -------- |
-| /api/favorite/check  | GET    | 检查新闻收藏状态 |
-| /api/favorite/add    | POST   | 添加收藏     |
-| /api/favorite/remove | DELETE | 取消收藏     |
-| /api/favorite/list   | GET    | 获取收藏列表   |
-| /api/favorite/clear  | DELETE | 情况所有收藏   |
-
-### 浏览历史相关接口
-
-| 接口                                 | 方法     | 说明       |
-| ---------------------------------- | ------ | -------- |
-| /api/history/add                   | POST   | 添加浏览记录   |
-| /api/history/list                  | GET    | 获取浏览历史列表 |
-| /api/history/delete/\{history\_id} | DELETE | 删除单条浏览记录 |
-| /api/history/clear                 | DELETE | 清空浏览历史   |
-
-## 1-8 认证机制
-
-系统使用基于令牌（Token）的认证机制：
-
-1、用户登录成功后返回访问令牌
-
-2、需要认证的接口的请求头添加Authorization：token值
-
-3、令牌有效期7天
-
-## 1-9 错误处理
-
-系统提供统一的错误处理机制：
-
-* 用户认证失败返回401状态码
-* 资源不存在返回404状态码
-* 服务器内部错误返回500状态码
-
-## 1-10 开发规范
-
-* 使用异步数据库操作
-* 所有密码均加密存储
-* 接口返回统一的JSON格式
-* 详细的接口文档和示例
-* 缓存操作封装成独立函数便于调用
-
-## 1-11 性能优化
-
-* 使用Redis缓存热点数据
-* 异步数据库操作提升并发性能
-* 合理的数据库索引设计
-* 连接池管理减少连接开销
