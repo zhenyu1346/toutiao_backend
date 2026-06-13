@@ -1,10 +1,10 @@
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
 from config.db_conf import get_db
 from crud import news
-import time
+from schemas.news import NewsListResponse, NewsDetailResponse, NewsBaseInfo, NewsItemResponse
+from utils.response import success_response
 
 # 创建 APIRouter 实例
 # prefix 路由前缀（API 接口规范文档）
@@ -21,11 +21,13 @@ router = APIRouter(prefix="/api/news",tags=["news"])
 async def get_categories(skip: int=0, limit: int=100,db: AsyncSession=Depends(get_db)):
     # 获取数据库里面的新闻分类数据 -> 定义模型类 -> 封装查询数据方法
     categories = await news.get_categories(db=db,skip=skip,limit=limit)
-    return {
-        "code": 200,
-        "message": "success",
-        "data": categories
-    }
+    # 响应结果：
+    # {
+    #     "code": 200,
+    #     "message": "success",
+    #     "data": categories
+    # }
+    return success_response(message='success', data=categories)
 
 @router.get("/list")
 async def get_news_list(
@@ -40,15 +42,22 @@ async def get_news_list(
     total = await news.get_news_count(db=db,category_id=category_id)
     # 跳过的 + 当前列表里面的数量 < 总量 -> 有更多
     has_more = offset + len(news_list) < total
-    return {
-        "code": 200,
-        "message": "success",
-        "data": {
-            "list" : news_list,
-            "total" : total,
-            "hasMore" : has_more
-        }
-    }
+    # 响应结果：
+    # {
+    #         "code": 200,
+    #         "message": "success",
+    #         "data": {
+    #             "list" : news_list,
+    #             "total" : total,
+    #             "hasMore" : has_more
+    #         }
+    # }
+    response_data = NewsListResponse(
+        list=[NewsItemResponse.model_validate(n) for n in news_list],
+        total=total,
+        hasMore=has_more
+    )
+    return success_response(message='success', data=response_data)
 
 @router.get("/detail")
 async def get_news_detail(
@@ -58,26 +67,38 @@ async def get_news_detail(
     # 获取新闻详情 + 浏览量+1 + 相关新闻
     news_detail = await news.get_news_detail(db=db,news_id=news_id)
     if not news_detail:
-        raise HTTPException(status_code=404,detail="新闻不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="新闻不存在")
 
     views_res = await news.increase_news_views(db=db,news_id=news_detail.id)
     if not views_res:
-        raise HTTPException(status_code=404,detail="新闻不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="新闻不存在")
 
     related_news = await news.get_related_news(db=db,news_id=news_detail.id,category_id=news_detail.category_id)
-
-    return {
-        "code": 200,
-        "message": "success",
-        "data": {
-            "id": news_detail.id,
-            "title": news_detail.title,
-            "content": news_detail.content,
-            "image": news_detail.image,
-            "author": news_detail.author,
-            "publishTime": news_detail.publish_time.strftime("%Y-%m-%d %H:%M:%S") if news_detail.publish_time else None,
-            "categoryTd": news_detail.category_id,
-            "views": news_detail.views,
-            "relatedNews": related_news
-        }
-    }
+    # 响应结果
+    # return {
+    #     "code": 200,
+    #     "message": "success",
+    #     "data": {
+    #         "id": news_detail.id,
+    #         "title": news_detail.title,
+    #         "content": news_detail.content,
+    #         "image": news_detail.image,
+    #         "author": news_detail.author,
+    #         "publishTime": news_detail.publish_time.strftime("%Y-%m-%d %H:%M:%S") if news_detail.publish_time else None,
+    #         "categoryTd": news_detail.category_id,
+    #         "views": news_detail.views,
+    #         "relatedNews": related_news
+    #     }
+    # }
+    response_data = NewsDetailResponse(
+        id=news_detail.id,
+        title=news_detail.title,
+        content=news_detail.content,
+        image=news_detail.image,
+        author=news_detail.author,
+        views=news_detail.views,
+        publishTime=news_detail.publish_time,
+        categoryId=news_detail.category_id,
+        relatedNews=[NewsItemResponse.model_validate(n) for n in related_news]
+    )
+    return success_response(message='success', data=response_data)

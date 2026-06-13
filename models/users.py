@@ -45,7 +45,7 @@ class User(Base):
     gender: Mapped[str] = mapped_column(Enum('male', 'female', 'unknown'), nullable=False, default='unknown', comment='性别')
     bio: Mapped[Optional[str]] = mapped_column(String(500), comment='个人简介')
     phone: Mapped[Optional[str]] = mapped_column(String(20), unique=True, comment='手机号')
-    updated_time: Mapped[DateTime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+    updated_at: Mapped[DateTime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
 
 """
 CREATE TABLE IF NOT EXISTS `user_token` (
