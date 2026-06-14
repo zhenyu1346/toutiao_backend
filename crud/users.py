@@ -1,20 +1,22 @@
 import uuid
 from datetime import datetime,timedelta
+from starlette import status
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select,update
 from models.users import User, UserToken
-from schemas.users import UserRequest
+from schemas.users import UserRequest, UserUpdateRequest
 from utils import security
 
 # 根据用户名查询数据库
-async def get_user_by_username(db: AsyncSession,username: str):
+async def get_user_by_username(db: AsyncSession,username: str) -> User|None:
     stmt = select(User).where(User.username == username)
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
 
 # 创建用户
-async def create_user(db: AsyncSession,user_data: UserRequest):
+async def create_user(db: AsyncSession,user_data: UserRequest) -> User:
     # 先密码加密处理 -> add用户数据 -> commit提交
     hashed_password = security.get_hash_password(user_data.password)
     user = User(username=user_data.username,password=hashed_password)
@@ -25,7 +27,7 @@ async def create_user(db: AsyncSession,user_data: UserRequest):
 
 
 # 生成Token
-async def create_token(db: AsyncSession,user_id: int):
+async def create_token(db: AsyncSession,user_id: int) -> str:
     # 生成Token + 设置过期时间 - 查询数据库当前用户是否存在 -> 有：更新 - 无：创建Token
     token = str(uuid.uuid4())
     expires_at = datetime.now() + timedelta(days=7)
@@ -36,11 +38,68 @@ async def create_token(db: AsyncSession,user_id: int):
     if user_token:
         user_token.token = token
         user_token.expires_at = expires_at
-        stmt = update(UserToken).where(UserToken.user_id == user_id).values(token=token,expires_at=expires_at)
-        await db.execute(stmt)
+        # stmt = update(UserToken).where(UserToken.user_id == user_id).values(token=token,expires_at=expires_at)
+        # await db.execute(stmt)
     else:
         user_token = UserToken(user_id=user_id,token=token,expires_at=expires_at)
         db.add(user_token)
     await db.commit()
     await db.refresh(user_token)
-    return user_token
+    return token
+
+
+# 验证密码是否正确
+async def authenticate_token(db: AsyncSession,username: str, password: str) -> User|None:
+    user = await get_user_by_username(db,username)
+    if not user:
+        return None
+    if not security.verify_password(password,user.password):
+        return None
+
+    return user
+
+
+# 根据Token查询用户：验证Token是否有效 -> 有效：返回用户 -> 无效：返回None
+async def get_user_by_token(db: AsyncSession,token: str) -> User|None:
+    query = select(UserToken).where(UserToken.token == token)
+    result = await db.execute(query)
+    db_token = result.scalar_one_or_none()
+
+    if not db_token or db_token.expires_at < datetime.now():
+        return None
+
+    query = select(User).where(User.id == db_token.user_id)
+    result = await db.execute(query)
+    return result.scalar_one_or_none()
+
+
+# 更新用户信息：update更新 -> 检查是否命中 -> 获取更新后的用户返回
+async def update_user(db: AsyncSession,username: str,user_data: UserUpdateRequest):
+    # values(字段=值,字段=值)
+    # user_data是一个pydantic类型，得到字典 -> **解包
+    # 没有设置值的不更新
+    stmt = update(User).where(User.username == username).values(**user_data.model_dump(
+        exclude_unset=True, # 不设置的值不更新
+        exclude_none=True, # 值为None的字段不更新
+    ))
+    result = await db.execute(stmt)
+    await db.commit()
+    # 检查更新
+    if result.rowcount == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+
+    # 获取一下更新后的数据
+    return await get_user_by_username(db,username)
+
+
+# 修改密码：验证旧密码 -> 新密码加密 -> 更新密码
+async def change_password(db: AsyncSession,user: User,old_password: str,new_password: str):
+    if not security.verify_password(old_password,user.password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="旧密码不正确")
+    hashed_new_pwd = security.get_hash_password(new_password)
+    user.password = hashed_new_pwd
+    # 更新：SQLAlchemy真正接管这个User对象，确保可以commit
+    db.add(user) # 防止数据库会话过期
+    await db.commit()
+    await db.refresh(user)
+    return True
